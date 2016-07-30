@@ -1,6 +1,11 @@
 #!/usr/bin/make -f
 include debian/make.mk
 
+$(call lazy,DEB_BUILD_ARCH,$$(shell dpkg-architecture -qDEB_BUILD_ARCH))
+$(call lazy,DEB_BUILD_GNU_TYPE,$$(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE))
+$(call lazy,DEB_HOST_ARCH,$$(shell dpkg-architecture -qDEB_HOST_ARCH))
+$(call lazy,DEB_HOST_GNU_TYPE,$$(shell dpkg-architecture -qDEB_HOST_GNU_TYPE))
+$(call lazy,DEB_HOST_GNU_CPU,$$(shell dpkg-architecture -qDEB_HOST_GNU_CPU))
 $(call lazy,DEB_HOST_MULTIARCH,$$(shell dpkg-architecture -qDEB_HOST_MULTIARCH))
 $(call lazy,CFLAGS,$$(shell dpkg-buildflags --get CFLAGS))
 $(call lazy,CPPFLAGS,$$(shell dpkg-buildflags --get CPPFLAGS))
@@ -20,10 +25,22 @@ debian/nss.pc: EXTRA_REPLACES := s/@VERSION@/$(UPSTREAM_VERSION)/
 debian/nss-config: EXTRA_REPLACES := s/@MOD_MAJOR_VERSION@/$(MOD_MAJOR_VERSION)/;s/@MOD_MINOR_VERSION@/$(MOD_MINOR_VERSION)/;s/@MOD_PATCH_VERSION@/$(MOD_PATCH_VERSION)/
 debian/libnss3.lintian-overrides: EXTRA_REPLACES := s,/@DEB_HOST_MULTIARCH_WC@,$(DEB_HOST_MULTIARCH:%=/*),g
 
-ifneq (,$(filter 64 alpha amd64 ia64 s390x,$(shell dpkg-architecture -qDEB_HOST_ARCH_BITS 2> /dev/null || dpkg-architecture -qDEB_HOST_ARCH)))
-USE_64 := USE_64=1
-else
-USE_64 :=
+TOOLCHAIN :=
+
+ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
+ifeq ($(origin CC),default)
+TOOLCHAIN += CC=$(DEB_HOST_GNU_TYPE)-gcc
+endif
+ifeq ($(origin CXX),default)
+TOOLCHAIN += CXX=$(DEB_HOST_GNU_TYPE)-g++
+endif
+ifeq ($(origin CCC),default)
+TOOLCHAIN += CCC=$(DEB_HOST_GNU_TYPE)-g++
+endif
+ifeq ($(origin RANLIB),default)
+TOOLCHAIN += RANLIB=$(DEB_HOST_GNU_TYPE)-ranlib
+endif
+TOOLCHAIN += OS_TEST=$(DEB_HOST_GNU_CPU)
 endif
 
 # $(foreach foo,$(list),$(call cmd,some command $(foo))) expands to
@@ -40,15 +57,56 @@ CFLAGS += -Wall -pipe
 
 DISTDIR := $(CURDIR)/dist
 
+COMMON_MAKE_FLAGS := \
+	SOURCE_PREFIX=$(DISTDIR) \
+	SOURCE_MD_DIR=$(DISTDIR) \
+	DIST=$(DISTDIR) \
+	OBJDIR_NAME=OBJS \
+	$(and $(filter 64,$(shell dpkg-architecture -qDEB_HOST_ARCH_BITS)),USE_64=1) \
+	$(and $(filter x32,$(shell dpkg-architecture -qDEB_HOST_ARCH)),USE_X32=1) \
+	$(NULL)
+
+NSS_TOOLS := \
+	certutil \
+	chktest \
+	cmsutil \
+	crlutil \
+	derdump \
+	httpserv \
+	modutil \
+	ocspclnt \
+	p7content \
+	p7env \
+	p7sign \
+	p7verify \
+	pk12util \
+	pk1sign \
+	pwdecrypt \
+	rsaperf \
+	selfserv \
+	shlibsign \
+	signtool \
+	signver \
+	ssltap \
+	strsclnt \
+	symkeyutil \
+	tstclnt \
+	vfychain \
+	vfyserv \
+	$(NULL)
+
 override_dh_auto_build:
+	$(MAKE) -C nss/coreconf/nsinstall \
+		$(COMMON_MAKE_FLAGS) \
+		CC=$(DEB_BUILD_GNU_TYPE)-gcc \
+		ARCHFLAG=
+
 	$(MAKE) -C nss \
 		all \
+		$(COMMON_MAKE_FLAGS) \
 		MOZILLA_CLIENT=1 \
 		NSPR_INCLUDE_DIR=/usr/include/nspr \
-		NSPR_LIB_DIR=/usr/lib \
-		SOURCE_PREFIX=$(DISTDIR) \
-		SOURCE_MD_DIR=$(DISTDIR) \
-		DIST=$(DISTDIR) \
+		NSPR_LIB_DIR=/usr/lib/$(DEB_HOST_MULTIARCH) \
 		BUILD_OPT=1 \
 		NS_USE_GCC=1 \
 		OPTIMIZER="$(CFLAGS) $(CPPFLAGS)" \
@@ -57,18 +115,17 @@ override_dh_auto_build:
 		NSS_USE_SYSTEM_SQLITE=1 \
 		NSS_ENABLE_ECC=1 \
 		CHECKLOC= \
-		$(USE_64)
+		$(TOOLCHAIN)
 
 override_dh_auto_clean:
 	-$(MAKE) -C nss \
 		clobber \
-		SOURCE_PREFIX=$(DISTDIR) \
-		SOURCE_MD_DIR=$(DISTDIR) \
-		DIST=$(DISTDIR) \
-		BUILD_OPT=1 \
-		$(USE_64)
+		$(COMMON_MAKE_FLAGS) \
+		BUILD_OPT=1
 
 	rm -rf $(DISTDIR) $(PREPROCESS_FILES:.in=)
+
+manpage = $(addsuffix .1,$(addprefix nss/doc/nroff/,$(1)))
 
 override_dh_auto_install: $(PREPROCESS_FILES:.in=)
 	install -m 755 -d debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss debian/libnss3-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig
@@ -90,56 +147,39 @@ override_dh_auto_install: $(PREPROCESS_FILES:.in=)
 	install -m 644 -t debian/libnss3-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig debian/nss.pc
 	install -m 755 -t debian/libnss3-dev/usr/bin debian/nss-config
 
-	install -m 755 -t debian/libnss3-tools/usr/bin \
-		$(foreach bin, \
-			certutil \
-			chktest \
-			cmsutil \
-			crlutil \
-			derdump \
-			httpserv \
-			modutil \
-			ocspclnt \
-			p7content \
-			p7env \
-			p7sign \
-			p7verify \
-			pk12util \
-			pk1sign \
-			pwdecrypt \
-			rsaperf \
-			selfserv \
-			shlibsign \
-			signtool \
-			signver \
-			ssltap \
-			strsclnt \
-			symkeyutil \
-			tstclnt \
-			vfychain \
-			vfyserv \
-		, $(DISTDIR)/bin/$(bin))
+	install -m 755 -t debian/libnss3-tools/usr/bin $(addprefix $(DISTDIR)/bin/,$(NSS_TOOLS))
+	install -m 755 -d $(DISTDIR)/man
+	install -m 644 -t $(DISTDIR)/man $(wildcard $(call manpage,$(NSS_TOOLS)))
+
 	# these utilities are too generically-named, so we prefix them with nss- (see http://bugs.debian.org/701141)
 	$(foreach bin, \
 		addbuiltin \
 		dbtest \
 		pp \
-		, $(call cmd,install -m 755 -T $(DISTDIR)/bin/$(bin) debian/libnss3-tools/usr/bin/nss-$(bin)))
+		, \
+		$(call cmd,install -m 755 -T $(DISTDIR)/bin/$(bin) debian/libnss3-tools/usr/bin/nss-$(bin)) \
+		$(if $(wildcard $(call manpage,$(bin))),$(call cmd,install -m 644 -T $(call manpage,$(bin)) $(DISTDIR)/man/nss-$(bin).1)))
+
+ifeq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
+SHLIBSIGN = LD_LIBRARY_PATH=debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH) debian/libnss3-tools/usr/bin/shlibsign
+else
+SHLIBSIGN = shlibsign
+endif
 
 override_dh_strip:
 	dh_strip -a --dbg-package=libnss3-dbg
 	$(foreach lib,libsoftokn3.so libfreebl3.so libnssdbm3.so, \
-		LD_LIBRARY_PATH=debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH):debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss \
-		debian/libnss3-tools/usr/bin/shlibsign -v -i debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss/$(lib);)
+		$(call cmd,umask 022; $(SHLIBSIGN) -v -i debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss/$(lib)))
+
+ifeq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 	# Check FIPS mode correctly works
 	mkdir debian/tmp
 	LD_LIBRARY_PATH=debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH):debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss debian/libnss3-tools/usr/bin/modutil -create -dbdir debian/tmp < /dev/null
 	LD_LIBRARY_PATH=debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH):debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss debian/libnss3-tools/usr/bin/modutil -fips true -dbdir debian/tmp < /dev/null
+endif
 
-override_dh_makeshlibs: /usr/share/debhelper/autoscripts/postinst-makeshlibs /usr/share/debhelper/autoscripts/postrm-makeshlibs
+override_dh_makeshlibs:
 	dh_makeshlibs -a -- -c4
-	cat /usr/share/debhelper/autoscripts/postinst-makeshlibs > debian/libnss3.postinst.debhelper
-	cat /usr/share/debhelper/autoscripts/postrm-makeshlibs > debian/libnss3.postrm.debhelper
 
 ifneq (,$(DEB_HOST_MULTIARCH))
 override_dh_gencontrol:

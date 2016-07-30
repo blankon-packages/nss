@@ -1,11 +1,115 @@
-nss (2:3.19-1blankon1) tambora; urgency=medium
+nss (2:3.23-2blankon1) tambora; urgency=medium
 
-  * debian/patches: added 101_pser_indonesia.patch 
-    - PSeR Induk Indonesia
-    - Intermediate CA Induk Indonesia
-    - PSeR Kominfo
+  * Add kominfo_root_ca.patch 
 
- -- Mahyuddin <yudi.al@gmail.com>  Sat, 16 May 2015 01:29:00 +0700
+ -- dotovr <dotovr@preko>  Sat, 30 Jul 2016 20:15:14 +0700
+
+nss (2:3.23-2) unstable; urgency=medium
+
+  * debian/control, debian/rules: Leave it to dh_makeshlibs to do the right
+    thing wrt ldconfig. This requires debhelper 9.20160403. Closes: #811124.
+
+ -- Mike Hommey <glandium@debian.org>  Sun, 03 Apr 2016 18:29:02 +0900
+
+nss (2:3.23-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Fixes mfsa2016-{35-36} also known as CVE-2016-1950 and CVE-2016-1979.
+  * debian/control: Bump nspr build dependency to 2:4.12.
+  * debian/libnss3.symbols: Add NSS_3.22 and NSS_3.23 symbol versions.
+
+ -- Mike Hommey <glandium@debian.org>  Wed, 09 Mar 2016 13:52:06 +0900
+
+nss (2:3.21-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Fix FTBFS on x32. Closes: #699217
+  * Fix FTBFS on hppa. Closes: #808990
+
+ -- Adam Borowski <kilobyte@angband.pl>  Sun, 14 Feb 2016 14:46:40 +0100
+nss (2:3.21-1) unstable; urgency=medium
+
+  * New upstream release.
+  * nss/lib/ssl/sslsock.c: Disable transitional scheme for SSL renegotiation.
+    5 years after the transition started, it shouldn't be necessary anymore.
+  * nss/lib/ckfw/builtins/certdata.txt: Remove the SPI CA.
+  * nss/lib/util/secload.c: Fix a warning introduced by our patch to this file.
+  * debian/libnss3.symbols: Add NSS_3.21 symbol versions.
+
+ -- Mike Hommey <glandium@debian.org>  Wed, 25 Nov 2015 09:18:30 +0900
+
+nss (2:3.20.1-1) unstable; urgency=high
+
+  * New upstream release.
+  * Fixes mfsa2015-133. also known as CVE-2015-7181 and CVE-2015-7182.
+
+ -- Mike Hommey <glandium@debian.org>  Wed, 04 Nov 2015 09:53:32 +0900
+
+nss (2:3.20-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Removed patch for __DATE__ and __TIME__ references from 2:3.19.1-1 because
+    the parts that matter were applied upstream.
+  * debian/rules: Move USE_64 to common make flags, and always use
+    DEB_HOST_ARCH_BITS since it's even supported by dpkg in oldstable, now.
+  * debian/libnss3.symbols: Add NSS_3.20 symbol versions.
+
+ -- Mike Hommey <glandium@debian.org>  Sat, 22 Aug 2015 09:02:11 +0900
+
+nss (2:3.19.2-1) unstable; urgency=medium
+
+  * New upstream release.
+  * debian/rules: Force set OS_TEST to DEB_HOST_GNU_CPU to avoid it defaulting
+    to `uname -m`. Thanks Helmut Grohne. Closes: #788452
+
+ -- Mike Hommey <glandium@debian.org>  Sun, 21 Jun 2015 06:30:13 +0900
+
+nss (2:3.19.1-2) unstable; urgency=medium
+
+  * debian/control: Fix Vcs-Git url.
+  * nss/cmd/shlibsign/manifest.mn: Fix missing LIBRARY_VERSION.
+  * nss/cmd/shlibsign/shlibsign.c: Fix shlibsign on arm64.
+
+ -- Mike Hommey <glandium@debian.org>  Mon, 01 Jun 2015 16:25:07 +0900
+
+nss (2:3.19.1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * debian/libnss3.symbols:
+    - Add NSS_3.19.1 symbol versions.
+    - Reorder and replace *@ with (symver).
+  * debian/rules:
+    - Pass multi-arch dir for NSPR_LIB_DIR. Closes: #722811.
+    - Set umask when calling shlibsign, and rearrange how it's being called.
+    - Build nsinstall separately and set things up for cross-compilations.
+    - Use native shlibsign when cross-compiling.
+    - Do not run FIPS check on cross-builds.
+  * debian/control: Build depend on native libnss3-tools for cross builds.
+    Closes: #682926.
+  * debian/libnss3-tools.manpages, debian/rules: Install the manpages that
+    are now provided upstream. Closes: #505382.
+  * debian/control: Update Vcs-* urls.
+  * debian/control: Bump Standards-Version to 3.9.6.0. No changes required.
+  * nss/lib/ckfw/builtins/binst.c, nss/lib/ckfw/builtins/ckbiver.c,
+    nss/lib/ckfw/builtins/manifest.mn, nss/lib/ckfw/capi/ckcapiver.c,
+    nss/lib/ckfw/capi/manifest.mn, nss/lib/ckfw/nssmkey/ckmkver.c,
+    nss/lib/ckfw/nssmkey/manifest.mn, nss/lib/freebl/freeblver.c,
+    nss/lib/freebl/ldvector.c, nss/lib/freebl/manifest.mn,
+    nss/lib/nss/manifest.mn, nss/lib/nss/nssinit.c, nss/lib/nss/nssver.c,
+    nss/lib/smime/manifest.mn, nss/lib/smime/smimeutil.c,
+    nss/lib/smime/smimever.c, nss/lib/softoken/legacydb/lginit.c,
+    nss/lib/softoken/manifest.mn, nss/lib/softoken/pkcs11.c,
+    nss/lib/softoken/softkver.c, nss/lib/ssl/manifest.mn,
+    nss/lib/ssl/sslcon.c, nss/lib/ssl/sslver.c, nss/lib/util/secoid.c: Remove
+    __DATE__ and __TIME__ references.
+  * nss/cmd/shlibsign/Makefile, nss/cmd/shlibsign/manifest.mn,
+    nss/cmd/shlibsign/shlibsign.c: Fix shlibsign to properly load the sotfoken
+    module.
+  * debian/rules: Remove debian/libnss3/usr/lib/$(DEB_HOST_MULTIARCH)/nss from
+    LD_LIBRARY_PATH when executing shlibsign, which can be done now with the
+    fix above.
+
+ -- Mike Hommey <glandium@debian.org>  Mon, 01 Jun 2015 09:47:58 +0900
 
 nss (2:3.19-1) unstable; urgency=medium
 
